@@ -7,10 +7,7 @@ import { MediaDirection } from '../../service/RTC/MediaDirection';
 import { MediaType } from '../../service/RTC/MediaType';
 import RTCEvents from '../../service/RTC/RTCEvents';
 import * as SignalingEvents from '../../service/RTC/SignalingEvents';
-import {
-    getSourceIndexFromSourceName,
-    getSourceNameForJitsiTrack
-} from '../../service/RTC/SignalingLayer';
+import { getSourceNameForJitsiTrack } from '../../service/RTC/SignalingLayer';
 import { VideoType } from '../../service/RTC/VideoType';
 import { SS_DEFAULT_FRAME_RATE } from '../RTC/ScreenObtainer';
 import browser from '../browser';
@@ -319,13 +316,6 @@ export default function TraceablePeerConnection(
      * @type {Map<string, number>}
      */
     this._senderMaxHeights = new Map();
-
-    /**
-     * Holds the RTCRtpTransceiver mids that the local tracks are attached to, mapped per their
-     * {@link JitsiLocalTrack.rtcId}.
-     * @type {Map<string, string>}
-     */
-    this._localTrackTransceiverMids = new Map();
 
     // override as desired
     this.trace = (what, info) => {
@@ -1634,9 +1624,61 @@ TraceablePeerConnection.prototype._isSharingScreen = function() {
  * @returns {RTCSessionDescription} the munged description.
  */
 TraceablePeerConnection.prototype._mungeCodecOrder = function(description) {
-    if (!this.codecPreference) {
+  //  if (!this.codecPreference) {
+  //      return description;
+  //  }
+
+  if(this.isP2P){
+    logger.log(` inytelog mungecodecorder in customP2P`);
+    // set the local description to include the b=as parameter
+    const customParsedSDP = transform.parse(description.sdp);
+    const customMline = customParsedSDP.media.find(m => m.type === MediaType.VIDEO)
+    const customMlineaudio = customParsedSDP.media.find(m => m.type === MediaType.AUDIO)
+    if (!customMline) {
+      logger.log(` inytelog mungecodecorder custom m line not found`);
         return description;
     }
+    const limit = 600;
+    customMline.bandwidth = [ {
+        type: 'AS',
+        limit
+    } ];
+
+    customMlineaudio.bandwidth = [ {
+        type: 'AS',
+        limit
+    } ];
+    return new RTCSessionDescription({
+        type: description.type,
+        sdp: transform.write(customParsedSDP)
+    });
+  }else{
+    logger.log(` inytelog mungecodecorder in customJVB`);
+    // set the local description to include the b=as parameter
+    const customParsedSDP = transform.parse(description.sdp);
+    const customMline = customParsedSDP.media.find(m => m.type === MediaType.VIDEO)
+    const customMlineaudio = customParsedSDP.media.find(m => m.type === MediaType.AUDIO)
+    if (!customMline) {
+      logger.log(` inytelog mungecodecorder custom m line not found`);
+        return description;
+    }
+    const limit = 600;
+    customMline.bandwidth = [ {
+        type: 'AS',
+        limit
+    } ];
+
+    customMlineaudio.bandwidth = [ {
+        type: 'AS',
+        limit
+    } ];
+
+    return new RTCSessionDescription({
+        type: description.type,
+        sdp: transform.write(customParsedSDP)
+    });
+  }
+
 
     const parsedSdp = transform.parse(description.sdp);
 
@@ -1977,30 +2019,6 @@ TraceablePeerConnection.prototype.findSenderForTrack = function(track) {
 };
 
 /**
- * Processes the local description SDP and caches the mids of the mlines associated with the given tracks.
- *
- * @param {Array<JitsiLocalTrack>} localTracks - local tracks that are added to the peerconnection.
- * @returns {void}
- */
-TraceablePeerConnection.prototype.processLocalSdpForTransceiverInfo = function(localTracks) {
-    const localSdp = this.peerconnection.localDescription?.sdp;
-
-    if (!localSdp) {
-        return;
-    }
-
-    for (const localTrack of localTracks) {
-        const mediaType = localTrack.getType();
-        const parsedSdp = transform.parse(localSdp);
-        const mLine = parsedSdp.media.find(mline => mline.type === mediaType);
-
-        if (!this._localTrackTransceiverMids.has(localTrack.rtcId)) {
-            this._localTrackTransceiverMids.set(localTrack.rtcId, mLine.mid.toString());
-        }
-    }
-};
-
-/**
  * Replaces <tt>oldTrack</tt> with <tt>newTrack</tt> from the peer connection.
  * Either <tt>oldTrack</tt> or <tt>newTrack</tt> can be null; replacing a valid
  * <tt>oldTrack</tt> with a null <tt>newTrack</tt> effectively just removes
@@ -2019,26 +2037,42 @@ TraceablePeerConnection.prototype.replaceTrack = function(oldTrack, newTrack) {
         return Promise.resolve();
     }
 
+    // If a track is being added to the peerconnection for the first time, we want the source signaling to be sent to
+    // Jicofo before the mute state is sent over presence. Therefore, trigger a renegotiation in this case. If we
+    // rely on "negotiationneeded" fired by the browser to signal new ssrcs, the mute state in presence will be sent
+    // before the source signaling which is undesirable.
+    // Send the presence before signaling for a new screenshare source. This is needed for multi-stream support since
+    // videoType needs to be availble at remote track creation time so that a fake tile for screenshare can be added.
+    // FIXME - This check needs to be removed when the client switches to the bridge based signaling for tracks.
+    const isNewTrackScreenshare = !oldTrack
+        && newTrack?.getVideoType() === VideoType.DESKTOP
+        && FeatureFlags.isMultiStreamSupportEnabled()
+        && !this.isP2P; // negotiationneeded is not fired on p2p peerconnection
+    const negotiationNeeded = !isNewTrackScreenshare && Boolean(!oldTrack || !this.localTracks.has(oldTrack?.rtcId));
+
     if (this._usesUnifiedPlan) {
         logger.debug(`${this} TPC.replaceTrack using unified plan`);
         const mediaType = newTrack?.getType() ?? oldTrack?.getType();
+        const stream = newTrack?.getOriginalStream();
+        const promise = newTrack && !stream
 
-        return this.tpcUtils.replaceTrack(oldTrack, newTrack)
+            // Ignore cases when the track is replaced while the device is in a muted state.
+            // The track will be replaced again on the peerconnection when the user unmutes.
+            ? Promise.resolve()
+            : this.tpcUtils.replaceTrack(oldTrack, newTrack);
+
+        return promise
             .then(transceiver => {
-                if (oldTrack) {
-                    this.localTracks.delete(oldTrack.rtcId);
-                    this._localTrackTransceiverMids.delete(oldTrack.rtcId);
-                }
-
                 if (newTrack) {
                     if (newTrack.isAudioTrack()) {
                         this._hasHadAudioTrack = true;
                     } else {
                         this._hasHadVideoTrack = true;
                     }
-                    this._localTrackTransceiverMids.set(newTrack.rtcId, transceiver?.mid?.toString());
-                    this.localTracks.set(newTrack.rtcId, newTrack);
                 }
+
+                oldTrack && this.localTracks.delete(oldTrack.rtcId);
+                newTrack && this.localTracks.set(newTrack.rtcId, newTrack);
 
                 // Update the local SSRC cache for the case when one track gets replaced with another and no
                 // renegotiation is triggered as a result of this.
@@ -2083,7 +2117,8 @@ TraceablePeerConnection.prototype.replaceTrack = function(oldTrack, newTrack) {
                     ? Promise.resolve()
                     : this.tpcUtils.setEncodings(newTrack);
 
-                return configureEncodingsPromise.then(() => false);
+                // Force renegotiation only when the source is added for the first time.
+                return configureEncodingsPromise.then(() => negotiationNeeded);
             });
     }
 
@@ -2267,7 +2302,7 @@ TraceablePeerConnection.prototype._adjustRemoteMediaDirection = function(remoteD
 TraceablePeerConnection.prototype._mungeOpus = function(description) {
     const { audioQuality } = this.options;
 
-    if (!audioQuality?.enableOpusDtx && !audioQuality?.stereo && !audioQuality?.opusMaxAverageBitrate) {
+    if (!audioQuality?.stereo && !audioQuality?.opusMaxAverageBitrate) {
         return description;
     }
 
@@ -2302,12 +2337,6 @@ TraceablePeerConnection.prototype._mungeOpus = function(description) {
 
             if (audioQuality?.opusMaxAverageBitrate) {
                 fmtpConfig.maxaveragebitrate = audioQuality.opusMaxAverageBitrate;
-                sdpChanged = true;
-            }
-
-            // On Firefox, the OpusDtx enablement has no effect
-            if (!browser.isFirefox() && audioQuality?.enableOpusDtx) {
-                fmtpConfig.usedtx = 1;
                 sdpChanged = true;
             }
 
@@ -2485,13 +2514,16 @@ TraceablePeerConnection.prototype.setLocalDescription = function(description) {
     let localDescription = description;
 
     this.trace('setLocalDescription::preTransform', dumpSDP(localDescription));
+    logger.log(` inytelogSLD pre-transformSDP`, dumpSDP(description));
 
     // Munge stereo flag and opusMaxAverageBitrate based on config.js
     localDescription = this._mungeOpus(localDescription);
 
     if (!this._usesUnifiedPlan) {
+      logger.log(` inytelogSLD not using unified plan`);
         localDescription = this._adjustLocalMediaDirection(localDescription);
         localDescription = this._ensureSimulcastGroupIsLast(localDescription);
+        logger.log(` inytelogSLD transform unifiedplan`, dumpSDP(localSdp));
     }
 
     // Munge the order of the codecs based on the preferences set through config.js.
@@ -2555,13 +2587,16 @@ TraceablePeerConnection.prototype.setRemoteDescription = function(description) {
     let remoteDescription = description;
 
     this.trace('setRemoteDescription::preTransform', dumpSDP(description));
+    logger.log(` inytelogSRD pre-transformSDP`, dumpSDP(description));
 
     // Munge stereo flag and opusMaxAverageBitrate based on config.js
     remoteDescription = this._mungeOpus(remoteDescription);
 
     if (this._usesUnifiedPlan) {
+         logger.log(` inytelogSRD Does use useUnified plan`);
         // Translate the SDP to Unified plan format first for the jvb case, p2p case will only have 2 m-lines.
         if (!this.isP2P) {
+          logger.log(` inytelogSRD in not P2P`);
             const currentDescription = this.peerconnection.remoteDescription;
 
             remoteDescription = this.interop.toUnifiedPlan(remoteDescription, currentDescription);
@@ -2572,24 +2607,32 @@ TraceablePeerConnection.prototype.setRemoteDescription = function(description) {
             }
         }
         if (this.isSimulcastOn()) {
+            logger.log(` inytelogSRD simulcast is on`);
             remoteDescription = this.tpcUtils.insertUnifiedPlanSimulcastReceive(remoteDescription);
             this.trace('setRemoteDescription::postTransform (sim receive)', dumpSDP(remoteDescription));
+            logger.log(` inytelogSRD Does use useUnified plan SDP post transform`);
+            logger.log(` inytelogSRD post-transformSDP`, dumpSDP(description));
         }
         remoteDescription = this.tpcUtils.ensureCorrectOrderOfSsrcs(remoteDescription);
         this.trace('setRemoteDescription::postTransform (correct ssrc order)', dumpSDP(remoteDescription));
     } else {
+      logger.log(` inytelogSRD Does not useUnified plan`);
         if (this.isSimulcastOn()) {
+          logger.log(` inytelogSRD simulcast is on`);
             // Implode the simulcast ssrcs so that the remote sdp has only the first ssrc in the SIM group.
             remoteDescription = this.simulcast.mungeRemoteDescription(
                 remoteDescription,
                 true /* add x-google-conference flag */);
             this.trace('setRemoteDescription::postTransform (simulcast)', dumpSDP(remoteDescription));
+            logger.log(` inytelogSRD Does not useUnified plan SDP post transform`);
+          logger.log(` inytelogSRD post-transformSDP`, dumpSDP(description));
         }
         remoteDescription = normalizePlanB(remoteDescription);
     }
 
     // Munge the order of the codecs based on the preferences set through config.js.
     remoteDescription = this._mungeCodecOrder(remoteDescription);
+    logger.log(` inytelogSRD post-transformSDPcodecmunge`, dumpSDP(description));
     remoteDescription = this._setVp9MaxBitrates(remoteDescription);
     this.trace('setRemoteDescription::postTransform (munge codec order)', dumpSDP(remoteDescription));
 
@@ -3052,12 +3095,12 @@ TraceablePeerConnection.prototype._processLocalSSRCsMap = function(ssrcMap) {
 
         if (FeatureFlags.isMultiStreamSupportEnabled()) {
             sourceName = track.getSourceName();
-            sourceIndex = getSourceIndexFromSourceName(sourceName);
+            sourceIndex = sourceName?.indexOf('-') + 2;
         }
 
         const sourceIdentifier = this._usesUnifiedPlan
-            ? FeatureFlags.isMultiStreamSupportEnabled()
-                ? `${track.getType()}-${sourceIndex}` : track.getType()
+            ? FeatureFlags.isMultiStreamSupportEnabled() && sourceIndex
+                ? `${track.getType()}-${sourceName.substr(sourceIndex, 1)}` : track.getType()
             : track.storedMSID;
 
         if (ssrcMap.has(sourceIdentifier)) {
