@@ -1,4 +1,5 @@
-import $ from 'jquery';
+/* global $ */
+
 import clonedeep from 'lodash.clonedeep';
 import transform from 'sdp-transform';
 
@@ -544,7 +545,7 @@ SDP.prototype.rtcpFbFromJingle = function(elem, payloadtype) { // XEP-0293
 };
 
 // construct an SDP from a jingle stanza
-SDP.prototype.fromJingle = function(jingle) {
+SDP.prototype.fromJingle = function(jingle, logger) {
     const sessionId = Date.now();
 
     // Use a unique session id for every TPC.
@@ -592,6 +593,18 @@ SDP.prototype.fromJingle = function(jingle) {
      */
 
     this.raw = this.session + this.media.join('');
+    try {
+        if (logger) {
+            logger.error(`inytelog fromJingle output ${this.raw}`);
+        }
+        console.log('inytelog fromJingle output', this.raw);
+    }
+    catch (error) {
+        if (logger) {
+            logger.error(` inytelog fromJingle output ${this.raw}`);
+        }
+        console.log('inytelog fromJingle output', this.raw);
+    }
 };
 
 // translate a jingle content element into an an SDP media part
