@@ -1639,6 +1639,57 @@ TraceablePeerConnection.prototype._mungeCodecOrder = function(description) {
 //        return description;
 //    }
 
+  if(this.isP2P){
+    logger.log(` inytelog mungecodecorder in customP2P`);
+    // set the local description to include the b=as parameter
+    const customParsedSDP = transform.parse(description.sdp);
+    const customMline = customParsedSDP.media.find(m => m.type === MediaType.VIDEO)
+    const customMlineaudio = customParsedSDP.media.find(m => m.type === MediaType.AUDIO)
+    if (!customMline) {
+      logger.log(` inytelog mungecodecorder custom m line not found`);
+        return description;
+    }
+    const limit = 600;
+    customMline.bandwidth = [ {
+        type: 'AS',
+        limit
+    } ];
+
+    customMlineaudio.bandwidth = [ {
+        type: 'AS',
+        limit
+    } ];
+    return new RTCSessionDescription({
+        type: description.type,
+        sdp: transform.write(customParsedSDP)
+    });
+  }else{
+    logger.log(` inytelog mungecodecorder in customJVB`);
+    // set the local description to include the b=as parameter
+    const customParsedSDP = transform.parse(description.sdp);
+    const customMline = customParsedSDP.media.find(m => m.type === MediaType.VIDEO)
+    const customMlineaudio = customParsedSDP.media.find(m => m.type === MediaType.AUDIO)
+    if (!customMline) {
+      logger.log(` inytelog mungecodecorder custom m line not found`);
+        return description;
+    }
+    const limit = 600;
+    customMline.bandwidth = [ {
+        type: 'AS',
+        limit
+    } ];
+
+    customMlineaudio.bandwidth = [ {
+        type: 'AS',
+        limit
+    } ];
+
+    return new RTCSessionDescription({
+        type: description.type,
+        sdp: transform.write(customParsedSDP)
+    });
+  }
+
     const parsedSdp = transform.parse(description.sdp);
 
     // Only the m-line that defines the source the browser will be sending should need to change.
