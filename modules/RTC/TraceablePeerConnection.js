@@ -2633,24 +2633,32 @@ TraceablePeerConnection.prototype.setRemoteDescription = function(description) {
             }
         }
         if (this.isSimulcastOn()) {
+			logger.log(` inytelogSRD simulcast is on`);
             remoteDescription = this.tpcUtils.insertUnifiedPlanSimulcastReceive(remoteDescription);
             this.trace('setRemoteDescription::postTransform (sim receive)', dumpSDP(remoteDescription));
+			logger.log(` inytelogSRD Does use useUnified plan SDP post transform`);
+			logger.log(` inytelogSRD post-transformSDP`, dumpSDP(description));
         }
         remoteDescription = this.tpcUtils.ensureCorrectOrderOfSsrcs(remoteDescription);
         this.trace('setRemoteDescription::postTransform (correct ssrc order)', dumpSDP(remoteDescription));
     } else {
+	  logger.log(` inytelogSRD Does not useUnified plan`);
         if (this.isSimulcastOn()) {
+			logger.log(` inytelogSRD simulcast is on`);
             // Implode the simulcast ssrcs so that the remote sdp has only the first ssrc in the SIM group.
             remoteDescription = this.simulcast.mungeRemoteDescription(
                 remoteDescription,
                 true /* add x-google-conference flag */);
             this.trace('setRemoteDescription::postTransform (simulcast)', dumpSDP(remoteDescription));
+			logger.log(` inytelogSRD Does not useUnified plan SDP post transform`);
+			logger.log(` inytelogSRD post-transformSDP`, dumpSDP(description));
         }
         remoteDescription = normalizePlanB(remoteDescription);
     }
 
     // Munge the order of the codecs based on the preferences set through config.js.
     remoteDescription = this._mungeCodecOrder(remoteDescription);
+	logger.log(` inytelogSRD post-transformSDPcodecmunge`, dumpSDP(description));
     remoteDescription = this._setVp9MaxBitrates(remoteDescription);
     this.trace('setRemoteDescription::postTransform (munge codec order)', dumpSDP(remoteDescription));
 
