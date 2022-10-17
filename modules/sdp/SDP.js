@@ -545,7 +545,7 @@ SDP.prototype.rtcpFbFromJingle = function(elem, payloadtype) { // XEP-0293
 };
 
 // construct an SDP from a jingle stanza
-SDP.prototype.fromJingle = function(jingle, logger) {
+SDP.prototype.fromJingle = function(jingle) {
     const sessionId = Date.now();
 
     // Use a unique session id for every TPC.
@@ -593,18 +593,6 @@ SDP.prototype.fromJingle = function(jingle, logger) {
      */
 
     this.raw = this.session + this.media.join('');
-    try {
-        if (logger) {
-
-        }
-
-    }
-    catch (error) {
-        if (logger) {
-
-        }
-
-    }
 };
 
 // translate a jingle content element into an an SDP media part
