@@ -1635,18 +1635,18 @@ TraceablePeerConnection.prototype._isSharingScreen = function() {
  */
 TraceablePeerConnection.prototype._mungeCodecOrder = function(description) {
 //    if (!this.codecPreference) {
-//		logger.log(` inytelog mungecodecorder codecprefernce not set`);
+//		logger.info(` inytelog mungecodecorder codecprefernce not set`);
 //        return description;
 //    }
 
   if(this.isP2P){
-    logger.log(` inytelog mungecodecorder in customP2P`);
+    logger.info(` inytelog mungecodecorder in customP2P`);
     // set the local description to include the b=as parameter
     const customParsedSDP = transform.parse(description.sdp);
     const customMline = customParsedSDP.media.find(m => m.type === MediaType.VIDEO)
     const customMlineaudio = customParsedSDP.media.find(m => m.type === MediaType.AUDIO)
     if (!customMline) {
-      logger.log(` inytelog mungecodecorder custom m line not found`);
+      logger.info(` inytelog mungecodecorder custom m line not found`);
         return description;
     }
     const limit = 600;
@@ -1664,13 +1664,13 @@ TraceablePeerConnection.prototype._mungeCodecOrder = function(description) {
         sdp: transform.write(customParsedSDP)
     });
   }else{
-    logger.log(` inytelog mungecodecorder in customJVB`);
+    logger.info(` inytelog mungecodecorder in customJVB`);
     // set the local description to include the b=as parameter
     const customParsedSDP = transform.parse(description.sdp);
     const customMline = customParsedSDP.media.find(m => m.type === MediaType.VIDEO)
     const customMlineaudio = customParsedSDP.media.find(m => m.type === MediaType.AUDIO)
     if (!customMline) {
-      logger.log(` inytelog mungecodecorder custom m line not found`);
+      logger.info(` inytelog mungecodecorder custom m line not found`);
         return description;
     }
     const limit = 600;
@@ -1697,12 +1697,12 @@ TraceablePeerConnection.prototype._mungeCodecOrder = function(description) {
     const mLine = parsedSdp.media.find(m => m.type === this.codecPreference.mediaType);
 
     if (!mLine) {
-		logger.log(` inytelog mungecodecorder m line not found`);
+		logger.info(` inytelog mungecodecorder m line not found`);
         return description;
     }
 
     if (this.codecPreference.enable) {
-		logger.log(` inytelog mungecodecorder codecprefernce  set`);
+		logger.info(` inytelog mungecodecorder codecprefernce  set`);
         SDPUtil.preferCodec(mLine, this.codecPreference.mimeType);
 
         // Strip the high profile H264 codecs on mobile clients for p2p connection.
@@ -1711,11 +1711,11 @@ TraceablePeerConnection.prototype._mungeCodecOrder = function(description) {
         // Jicofo offers only the baseline code for the jvb connection.
         // TODO - add check for mobile browsers once js-utils provides that check.
         if (this.codecPreference.mimeType === CodecMimeType.H264 && browser.isReactNative() && this.isP2P) {
-			logger.log(` inytelog mungecodecorder stripcodec`);
+			logger.info(` inytelog mungecodecorder stripcodec`);
             SDPUtil.stripCodec(mLine, this.codecPreference.mimeType, true /* high profile */);
         }
     } else {
-		logger.log(` inytelog mungecodecorder codecprefernce check failed`);
+		logger.info(` inytelog mungecodecorder codecprefernce check failed`);
         SDPUtil.stripCodec(mLine, this.codecPreference.mimeType);
     }
 
@@ -2541,15 +2541,15 @@ TraceablePeerConnection.prototype.setLocalDescription = function(description) {
     let localDescription = description;
 
     this.trace('setLocalDescription::preTransform', dumpSDP(localDescription));
-	logger.log(` inytelogSLD pre-transformSDP`, dumpSDP(description));
+	logger.info(` inytelogSLD pre-transformSDP`, dumpSDP(description));
     // Munge stereo flag and opusMaxAverageBitrate based on config.js
     localDescription = this._mungeOpus(localDescription);
 
     if (!this._usesUnifiedPlan) {
-		logger.log(` inytelogSLD not using unified plan`);
+		logger.info(` inytelogSLD not using unified plan`);
         localDescription = this._adjustLocalMediaDirection(localDescription);
         localDescription = this._ensureSimulcastGroupIsLast(localDescription);
-		logger.log(` inytelogSLD transform unifiedplan`, dumpSDP(localSdp))
+		logger.info(` inytelogSLD transform unifiedplan`, dumpSDP(localSdp))
     }
 
     // Munge the order of the codecs based on the preferences set through config.js.
@@ -2613,16 +2613,16 @@ TraceablePeerConnection.prototype.setRemoteDescription = function(description) {
     let remoteDescription = description;
 
     this.trace('setRemoteDescription::preTransform', dumpSDP(description));
-	logger.log(` inytelogSRD pre-transformSDP`, dumpSDP(description));
+	logger.info(` inytelogSRD pre-transformSDP`, dumpSDP(description));
 
     // Munge stereo flag and opusMaxAverageBitrate based on config.js
     remoteDescription = this._mungeOpus(remoteDescription);
 
     if (this._usesUnifiedPlan) {
-		logger.log(` inytelogSRD Does not useUnified plan`);
+		logger.info(` inytelogSRD Does not useUnified plan`);
         // Translate the SDP to Unified plan format first for the jvb case, p2p case will only have 2 m-lines.
         if (!this.isP2P) {
-			logger.log(` inytelogSRD in not P2P`);
+			logger.info(` inytelogSRD in not P2P`);
             const currentDescription = this.peerconnection.remoteDescription;
 
             remoteDescription = this.interop.toUnifiedPlan(remoteDescription, currentDescription);
@@ -2633,32 +2633,32 @@ TraceablePeerConnection.prototype.setRemoteDescription = function(description) {
             }
         }
         if (this.isSimulcastOn()) {
-			logger.log(` inytelogSRD simulcast is on`);
+			logger.info(` inytelogSRD simulcast is on`);
             remoteDescription = this.tpcUtils.insertUnifiedPlanSimulcastReceive(remoteDescription);
             this.trace('setRemoteDescription::postTransform (sim receive)', dumpSDP(remoteDescription));
-			logger.log(` inytelogSRD Does use useUnified plan SDP post transform`);
-			logger.log(` inytelogSRD post-transformSDP`, dumpSDP(description));
+			logger.info(` inytelogSRD Does use useUnified plan SDP post transform`);
+			logger.info(` inytelogSRD post-transformSDP`, dumpSDP(description));
         }
         remoteDescription = this.tpcUtils.ensureCorrectOrderOfSsrcs(remoteDescription);
         this.trace('setRemoteDescription::postTransform (correct ssrc order)', dumpSDP(remoteDescription));
     } else {
-	  logger.log(` inytelogSRD Does not useUnified plan`);
+	  logger.info(` inytelogSRD Does not useUnified plan`);
         if (this.isSimulcastOn()) {
-			logger.log(` inytelogSRD simulcast is on`);
+			logger.info(` inytelogSRD simulcast is on`);
             // Implode the simulcast ssrcs so that the remote sdp has only the first ssrc in the SIM group.
             remoteDescription = this.simulcast.mungeRemoteDescription(
                 remoteDescription,
                 true /* add x-google-conference flag */);
             this.trace('setRemoteDescription::postTransform (simulcast)', dumpSDP(remoteDescription));
-			logger.log(` inytelogSRD Does not useUnified plan SDP post transform`);
-			logger.log(` inytelogSRD post-transformSDP`, dumpSDP(description));
+			logger.info(` inytelogSRD Does not useUnified plan SDP post transform`);
+			logger.info(` inytelogSRD post-transformSDP`, dumpSDP(description));
         }
         remoteDescription = normalizePlanB(remoteDescription);
     }
 
     // Munge the order of the codecs based on the preferences set through config.js.
     remoteDescription = this._mungeCodecOrder(remoteDescription);
-	logger.log(` inytelogSRD post-transformSDPcodecmunge`, dumpSDP(description));
+	logger.info(` inytelogSRD post-transformSDPcodecmunge`, dumpSDP(description));
     remoteDescription = this._setVp9MaxBitrates(remoteDescription);
     this.trace('setRemoteDescription::postTransform (munge codec order)', dumpSDP(remoteDescription));
 
