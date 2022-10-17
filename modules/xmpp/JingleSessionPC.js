@@ -354,7 +354,6 @@ export default class JingleSessionPC extends JingleSession {
      * @param {JingleSessionPCOptions} options  - a set of config options.
      */
     doInitialize(options) {
-
         this.failICE = Boolean(options.failICE);
         this.lasticecandidate = false;
         this.options = options;
@@ -395,7 +394,6 @@ export default class JingleSessionPC extends JingleSession {
                         : options.enableUnifiedOnChrome ?? true));
 
         if (this.isP2P) {
-
             // simulcast needs to be disabled for P2P (121) calls
             pcOptions.disableSimulcast = true;
             const abtestSuspendVideo = this._abtestSuspendVideoEnabled(options);
@@ -404,7 +402,6 @@ export default class JingleSessionPC extends JingleSession {
                 pcOptions.abtestSuspendVideo = abtestSuspendVideo;
             }
         } else {
-
             // H264 does not support simulcast, so it needs to be disabled.
             pcOptions.disableSimulcast
                 = options.disableSimulcast
@@ -442,11 +439,6 @@ export default class JingleSessionPC extends JingleSession {
                 // the check complete.
                 return;
             }
-            if(this.isP2P){
-
-          }else{
-
-          }
 
             // XXX this is broken, candidate is not parsed.
             const candidate = ev.candidate;
@@ -495,11 +487,6 @@ export default class JingleSessionPC extends JingleSession {
         // "closed" instead.
         // I suppose at some point this will be moved to onconnectionstatechange
         this.peerconnection.onsignalingstatechange = () => {
-          if(this.isP2P){
-
-        }else{
-
-        }
             if (this.peerconnection.signalingState === 'stable') {
                 this.wasstable = true;
             } else if (this.peerconnection.signalingState === 'closed'
@@ -517,11 +504,6 @@ export default class JingleSessionPC extends JingleSession {
         this.peerconnection.oniceconnectionstatechange = () => {
             const now = window.performance.now();
             let isStable = false;
-            if(this.isP2P){
-
-        }else{
-
-        }
 
             if (!this.isP2P) {
                 this.room.connectionTimes[
@@ -632,11 +614,7 @@ export default class JingleSessionPC extends JingleSession {
          */
         this.peerconnection.onconnectionstatechange = () => {
             const icestate = this.peerconnection.iceConnectionState;
-            if(this.isP2P){
 
-            }else{
-
-            }
             switch (this.peerconnection.connectionState) {
             case 'failed':
                 // Since version 76 Chrome no longer switches ICE connection
@@ -656,11 +634,6 @@ export default class JingleSessionPC extends JingleSession {
          * RTCPeerConnection object.
          */
         this.peerconnection.onnegotiationneeded = () => {
-          if(this.isP2P){
-
-           }else{
-
-          }
             const state = this.peerconnection.signalingState;
             const remoteDescription = this.peerconnection.remoteDescription;
 
@@ -730,11 +703,7 @@ export default class JingleSessionPC extends JingleSession {
      */
     sendIceCandidate(candidate) {
         const localSDP = new SDP(this.peerconnection.localDescription.sdp);
-        if(this.isP2P){
 
-        }else{
-
-        }
         if (candidate && candidate.candidate.length && !this.lasticecandidate) {
             const ice = SDPUtil.iceparams(localSDP.media[candidate.sdpMLineIndex], localSDP.session);
             const jcand = SDPUtil.candidateToJingle(candidate.candidate);
@@ -782,12 +751,6 @@ export default class JingleSessionPC extends JingleSession {
 
             return;
         }
-
-        if(this.isP2P){
-        logger.log(`${this} sendIceCandidates P2P ${JSON.stringify(candidates)}`);
-         }else{
-        logger.log(`${this} sendIceCandidates NOTP2P ${JSON.stringify(candidates)}`);
-         }
 
         logger.log(`${this} sendIceCandidates ${JSON.stringify(candidates)}`);
         const cand = $iq({ to: this.remoteJid,
@@ -904,11 +867,6 @@ export default class JingleSessionPC extends JingleSession {
 
             return;
         }
-        if(this.isP2P){
-
-        }else{
-
-        }
 
         const iceCandidates = [];
 
@@ -966,11 +924,6 @@ export default class JingleSessionPC extends JingleSession {
      * @param contents
      */
     readSsrcInfo(contents) {
-      if(this.isP2P){
-
-      }else{
-
-      }
         const ssrcs = $(contents).find('>description>source[xmlns="urn:xmpp:jingle:apps:rtp:ssma:0"]');
 
         ssrcs.each((i, ssrcElement) => {
@@ -1040,11 +993,6 @@ export default class JingleSessionPC extends JingleSession {
      * assumption that the initial offer/answer cycle has been executed already.
      */
     acceptOffer(jingleOffer, success, failure, localTracks) {
-      if(this.isP2P){
-
-       }else{
-
-       }
         this.setOfferAnswerCycle(
             jingleOffer,
             () => {
@@ -1086,7 +1034,6 @@ export default class JingleSessionPC extends JingleSession {
         if (!this.isInitiator) {
             throw new Error('Trying to invite from the responder session');
         }
-
         const workFunction = finishedCallback => {
             const addTracks = [];
 
@@ -1100,7 +1047,6 @@ export default class JingleSessionPC extends JingleSession {
                 .then(() => {
                     // NOTE that the offer is obtained from the localDescription getter as it needs to go though
                     // the transformation chain.
-
                     this.sendSessionInitiate(this.peerconnection.localDescription.sdp);
                 })
                 .then(() => finishedCallback(), error => finishedCallback(error));
@@ -1160,11 +1106,6 @@ export default class JingleSessionPC extends JingleSession {
      * @param jingleAnswer
      */
     setAnswer(jingleAnswer) {
-      if(this.isP2P){
-
-      }else{
-
-      }
         if (!this.isInitiator) {
             throw new Error('Trying to set an answer on the responder session');
         }
@@ -1215,11 +1156,6 @@ export default class JingleSessionPC extends JingleSession {
      * offer/answer).
      */
     setOfferAnswerCycle(jingleOfferAnswerIq, success, failure, localTracks = []) {
-      if(this.isP2P){
-
-    }else{
-
-    }
         const workFunction = finishedCallback => {
             const addTracks = [];
             const audioTracks = localTracks.filter(track => track.getType() === MediaType.AUDIO);
@@ -1267,7 +1203,6 @@ export default class JingleSessionPC extends JingleSession {
                             && (!this._localVideoActive
                                 || this.localRecvMaxFrameHeight
                                 || this._sourceReceiverConstraints)) {
-
                             this.sendContentModify();
                         }
                     }
@@ -1275,7 +1210,6 @@ export default class JingleSessionPC extends JingleSession {
                     // Old local SDP will be available when we're setting answer for the first time, but not when offer
                     // and it's fine since we're generating an answer now it will contain all our SSRCs.
                     if (oldLocalSdp) {
-
                         const newLocalSdp = new SDP(this.peerconnection.localDescription.sdp);
 
                         this.notifyMySSRCUpdate(new SDP(oldLocalSdp), newLocalSdp);
@@ -1306,11 +1240,6 @@ export default class JingleSessionPC extends JingleSession {
      * @param {CodecMimeType} disabled the codec that needs to be disabled.
      */
     setVideoCodecs(preferred = null, disabled = null) {
-      if(this.isP2P){
-
-    }else{
-
-    }
         const current = this.peerconnection.getConfiguredVideoCodec();
 
         if (this._assertNotEnded() && preferred !== current) {
@@ -1319,7 +1248,6 @@ export default class JingleSessionPC extends JingleSession {
 
             // Initiate a renegotiate for the codec setting to take effect.
             const workFunction = finishedCallback => {
-
                 this._renegotiate().then(
                     () => {
                         logger.debug(`${this} setVideoCodecs task is done`);
@@ -1350,11 +1278,6 @@ export default class JingleSessionPC extends JingleSession {
      * @param failure function(error) called when we fail to accept new offer.
      */
     replaceTransport(jingleOfferElem, success, failure) {
-      if(this.isP2P){
-
-  }else{
-
-  }
         if (this.options.enableForcedReload) {
             const sdp = new SDP(this.peerconnection.localDescription.sdp);
 
@@ -1432,11 +1355,6 @@ export default class JingleSessionPC extends JingleSession {
     sendSessionAccept(success, failure) {
         // NOTE: since we're just reading from it, we don't need to be within
         //  the modification queue to access the local description
-        if(this.isP2P){
-
-    }else{
-
-    }
         const localSDP = new SDP(this.peerconnection.localDescription.sdp);
         const accept = $iq({ to: this.remoteJid,
             type: 'set' })
@@ -1500,12 +1418,6 @@ export default class JingleSessionPC extends JingleSession {
      * @private
      */
     sendContentModify() {
-
-      if(this.isP2P){
-
-    }else{
-
-    }
         const maxFrameHeight = this.localRecvMaxFrameHeight;
         const senders = this._localVideoActive ? 'both' : 'none';
 
@@ -1564,11 +1476,6 @@ export default class JingleSessionPC extends JingleSession {
      * @param {Map<string, number>} sourceReceiverConstraints - The receiver constraints per source.
      */
     setReceiverVideoConstraint(maxFrameHeight, sourceReceiverConstraints) {
-       if(this.isP2P){
-
-       }else{
-
-        }
         logger.info(`${this} setReceiverVideoConstraint - max frame height: ${maxFrameHeight}`
             + ` sourceReceiverConstraints: ${sourceReceiverConstraints}`);
 
@@ -1598,11 +1505,6 @@ export default class JingleSessionPC extends JingleSession {
      * @private
      */
     sendTransportAccept(localSDP, success, failure) {
-      if(this.isP2P){
-
-      }else{
-
-      }
         const transportAccept = $iq({ to: this.remoteJid,
             type: 'set' })
             .c('jingle', {
@@ -1677,11 +1579,6 @@ export default class JingleSessionPC extends JingleSession {
      * successful and rejected otherwise.
      */
     setSenderVideoConstraint(maxFrameHeight, sourceName = null) {
-      if(this.isP2P){
-
-      }else{
-
-      }
         if (this._assertNotEnded()) {
             logger.info(`${this} setSenderVideoConstraint: ${maxFrameHeight}, sourceName: ${sourceName}`);
 
@@ -1799,11 +1696,6 @@ export default class JingleSessionPC extends JingleSession {
      *  be added to the remote SDP
      */
     _parseSsrcInfoFromSourceAdd(sourceAddElem, currentRemoteSdp) {
-      if(this.isP2P){
-
-    }else{
-
-    }
         const addSsrcInfo = [];
         const self = this;
 
@@ -1887,11 +1779,6 @@ export default class JingleSessionPC extends JingleSession {
      * @param elem An array of Jingle "content" elements.
      */
     addRemoteStream(elem) {
-      if(this.isP2P){
-
-    }else{
-
-    }
         this._addOrRemoveRemoteStream(true /* add */, elem);
     }
 
@@ -1900,11 +1787,6 @@ export default class JingleSessionPC extends JingleSession {
      * @param elem An array of Jingle "content" elements.
      */
     removeRemoteStream(elem) {
-      if(this.isP2P){
-
-      }else{
-
-      }
         this._addOrRemoveRemoteStream(false /* remove */, elem);
     }
 
@@ -1915,11 +1797,6 @@ export default class JingleSessionPC extends JingleSession {
      * @returns {void}
      */
     removeRemoteStreamsOnLeave(id) {
-      if(this.isP2P){
-
-        }else{
-
-        }
         const workFunction = finishCallback => {
             const removeSsrcInfo = this.peerconnection.getRemoteSourceInfoByParticipant(id);
 
@@ -1962,11 +1839,6 @@ export default class JingleSessionPC extends JingleSession {
      * @private
      */
     _addOrRemoveRemoteStream(isAdd, elem) {
-      if(this.isP2P){
-
-      }else{
-
-      }
         const logPrefix = isAdd ? 'addRemoteStream' : 'removeRemoteStream';
 
         if (isAdd) {
@@ -2028,11 +1900,6 @@ export default class JingleSessionPC extends JingleSession {
      * @returns {SDP object} the jingle offer translated to SDP
      */
     _processNewJingleOfferIq(offerIq) {
-      if(this.isP2P){
-
-    }else{
-
-    }
         const remoteSdp = new SDP('');
 
         if (this.webrtcIceTcpDisable) {
@@ -2159,11 +2026,6 @@ export default class JingleSessionPC extends JingleSession {
      *  rejects with an error {string}
      */
     _renegotiate(optionalRemoteSdp) {
-      if(this.isP2P){
-
-       }else{
-
-      }
         if (this.peerconnection.signalingState === 'closed') {
             const error = new Error('Attempted to renegotiate in state closed');
 
@@ -2202,11 +2064,6 @@ export default class JingleSessionPC extends JingleSession {
      * @private
      */
     _responderRenegotiate(remoteDescription) {
-      if(this.isP2P){
-
-  }else{
-
-  }
         logger.debug(`${this} Renegotiate: setting remote description`);
 
         return this.peerconnection.setRemoteDescription(remoteDescription)
@@ -2229,11 +2086,6 @@ export default class JingleSessionPC extends JingleSession {
      * @private
      */
     _initiatorRenegotiate(remoteDescription) {
-      if(this.isP2P){
-
- }else{
-
- }
         logger.debug(`${this} Renegotiate: creating offer`);
 
         return this.peerconnection.createOffer(this.mediaConstraints)
