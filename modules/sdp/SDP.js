@@ -595,15 +595,15 @@ SDP.prototype.fromJingle = function(jingle, logger) {
     this.raw = this.session + this.media.join('');
     try {
         if (logger) {
-            logger.error(`inytelog fromJingle output ${this.raw}`);
+
         }
-        console.log('inytelog fromJingle output', this.raw);
+
     }
     catch (error) {
         if (logger) {
-            logger.error(` inytelog fromJingle output ${this.raw}`);
+
         }
-        console.log('inytelog fromJingle output', this.raw);
+
     }
 };
 
