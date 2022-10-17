@@ -2554,6 +2554,7 @@ TraceablePeerConnection.prototype.setLocalDescription = function(description) {
 
     // Munge the order of the codecs based on the preferences set through config.js.
     localDescription = this._mungeCodecOrder(localDescription);
+	logger.info(` inytelogSLD transform unifiedplan`, dumpSDP(localDescription))
     localDescription = this._setVp9MaxBitrates(localDescription, true);
 
     this.trace('setLocalDescription::postTransform', dumpSDP(localDescription));
@@ -2658,7 +2659,7 @@ TraceablePeerConnection.prototype.setRemoteDescription = function(description) {
 
     // Munge the order of the codecs based on the preferences set through config.js.
     remoteDescription = this._mungeCodecOrder(remoteDescription);
-	logger.info(` inytelogSRD post-transformSDPcodecmunge`, dumpSDP(description));
+	logger.info(` inytelogSRD post-transformSDPcodecmunge`, dumpSDP(remoteDescription));
     remoteDescription = this._setVp9MaxBitrates(remoteDescription);
     this.trace('setRemoteDescription::postTransform (munge codec order)', dumpSDP(remoteDescription));
 
